@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Where orders pile up</title>
+<!--
+  Reference widget for folio. Fictional online shop, fictional numbers.
+
+  Three steps, driven by the arrow keys of the deck:
+    0  orders arrive and every stage shows its capacity
+    1  the slowest stage is marked and the backlog starts to grow
+    2  a third packer is added and the backlog disappears
+
+  Parameters (set in the deck source, all optional):
+    orders=180   orders arriving per hour
+    packers=2    people packing (each packs 60 orders per hour)
+
+  What it demonstrates: theme variables, steps, a live slider, a click-for-details
+  card, a flow animation that stops when the slide is not visible, and no network.
+  Open this file directly in a browser to preview it: the arrow keys step.
+-->
+<style>
+  :root{--bad:#d6453d;--ok:#1b9a72}
+  :root[data-theme=dark]{--bad:#ff6f66;--ok:#3fd1a0}
+  html,body{height:100%}
+  body{position:relative;display:flex;flex-direction:column;gap:.8em;font-size:clamp(12px,1.15vw,19px)}
+  .cap{min-height:3.6em;transition:opacity .2s}
+  .cap.swap{opacity:0}
+  .cap b{display:block;font-size:1.22em;margin-bottom:.15em}
+  .cap span{color:var(--muted);line-height:1.45}
+  .pipe{flex:1 1 auto;min-height:0;display:flex;align-items:center;gap:.4em;position:relative}
+  .stage{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:.9em 1em;
+         cursor:pointer;transition:border-color .25s,box-shadow .25s;font:inherit;color:inherit;text-align:left}
+  .stage:hover{border-color:var(--accent)}
+  .stage.bad{border-color:var(--bad);box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 25%,transparent)}
+  .stage h3{margin:0 0 .15em;font-size:1.05em}
+  .stage .n{font-size:1.7em;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .stage .u{color:var(--muted);font-size:.8em}
+  .meter{height:.5em;border-radius:99px;background:var(--line);margin-top:.7em;overflow:hidden}
+  .meter i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .5s ease,background .3s}
+  .stage.bad .meter i{background:var(--bad)}
+  .arrow{color:var(--muted);font-size:1.4em}
+  .dots{position:absolute;left:0;right:0;top:calc(50% + 4.4em);height:.5em;pointer-events:none}
+  .dots i{position:absolute;top:0;width:.5em;height:.5em;border-radius:50%;background:var(--accent);opacity:.8}
+  .bottom{display:flex;align-items:center;gap:1.2em;flex-wrap:wrap}
+  .bottom label{display:flex;align-items:center;gap:.6em;color:var(--muted)}
+  .bottom input{accent-color:var(--accent);width:11em}
+  .chip{padding:.35em .9em;border-radius:99px;background:var(--panel);border:1px solid var(--line)}
+  .chip b{font-variant-numeric:tabular-nums}
+  .chip.bad b{color:var(--bad)}.chip.ok b{color:var(--ok)}
+  #pop{position:absolute;z-index:5;width:min(280px,88vw);background:var(--bg);border:1px solid var(--line);
+       border-radius:12px;padding:12px 14px;box-shadow:0 14px 38px rgba(0,0,0,.4);font-size:.85em;line-height:1.45;
+       opacity:0;transform:translateY(6px);pointer-events:none;transition:opacity .18s,transform .18s}
+  #pop.on{opacity:1;transform:none;pointer-events:auto}
+  #pop h4{margin:0 0 .3em;font-size:1.05em}
+  #pop p{margin:0;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="cap" id="cap"></div>
+<div class="pipe" id="pipe"><div class="dots" id="dots"></div></div>
+<div class="bottom">
+  <label>Orders per hour <input id="rate" type="range" min="0" max="300" step="10"><b id="rv"></b></label>
+  <span class="chip" id="thr">Shipped <b></b> per hour</span>
+  <span class="chip" id="back">Backlog after 8 hours <b></b></span>
+</div>
+<div id="pop"></div>
+<script>
+(function () {
+  var ns = window.folio;
+  var demand = +ns.param('orders', 180);
+  var packers = +ns.param('packers', 2);
+  var PER = 60; // orders one person packs per hour
+  var stages = [
+    {name: 'Intake',  cap: function () { return 400; },           note: 'Web shop and phone orders are accepted and paid.'},
+    {name: 'Picking', cap: function () { return 200; },           note: 'Items are collected from shelves. Capacity is set by the number of pickers on shift.'},
+    {name: 'Packing', cap: function () { return packers * PER; }, note: 'Each person packs 60 orders per hour. This is the only stage that changes in step 2.'},
+    {name: 'Dispatch', cap: function () { return 260; },          note: 'The courier collects once per hour and takes what is ready.'}
+  ];
+  var pipe = document.getElementById('pipe'), cap = document.getElementById('cap');
+  var rate = document.getElementById('rate'), pop = document.getElementById('pop');
+  var els = [];
+
+  stages.forEach(function (s, i) {
+    if (i) { var a = document.createElement('span'); a.className = 'arrow'; a.textContent = '→'; pipe.insertBefore(a, document.getElementById('dots')); }
+    var b = document.createElement('button'); b.className = 'stage'; b.type = 'button';
+    b.innerHTML = '<h3>' + s.name + '</h3><div class="n"></div><div class="u">orders per hour</div><div class="meter"><i></i></div>';
+    b.onclick = function (e) { e.stopPropagation(); show(i, b); };
+    pipe.insertBefore(b, document.getElementById('dots'));
+    els.push(b);
+  });
+
+  var captions = [
+    ['Orders arrive at 180 per hour', 'Each stage has a capacity. As long as every capacity is above the arrival rate nothing waits.'],
+    ['Packing is the slowest stage', 'Two packers handle 120 orders per hour. The other 60 wait, so the queue grows by 60 an hour.'],
+    ['A third packer clears the queue', 'Packing now handles 180 per hour. Picking at 200 is the next limit, so the next hire goes there.']
+  ];
+
+  function flow() {
+    var through = demand, bad = -1;
+    stages.forEach(function (s, i) {
+      var c = s.cap();
+      if (through > c && bad < 0) bad = i;
+      through = Math.min(through, c);
+    });
+    return {out: through, bad: bad};
+  }
+
+  function render() {
+    var f = flow(), inflow = demand;
+    stages.forEach(function (s, i) {
+      var c = s.cap(), load = Math.min(inflow, c);
+      els[i].querySelector('.n').textContent = c;
+      els[i].querySelector('.meter i').style.width = Math.min(100, Math.round(100 * inflow / c)) + '%';
+      els[i].classList.toggle('bad', ns.step >= 1 && i === f.bad);
+      inflow = load;
+    });
+    rate.value = demand;
+    document.getElementById('rv').textContent = ' ' + demand;
+    var t = document.getElementById('thr'), k = document.getElementById('back'), backlog = (demand - f.out) * 8;
+    t.querySelector('b').textContent = f.out;
+    k.querySelector('b').textContent = backlog;
+    k.className = 'chip ' + (backlog > 0 ? 'bad' : 'ok');
+    speed = f.out / 200;
+  }
+
+  function caption(step) {
+    cap.classList.add('swap');
+    setTimeout(function () {
+      cap.innerHTML = '<b>' + captions[step][0] + '</b><span>' + captions[step][1] + '</span>';
+      cap.classList.remove('swap');
+    }, 160);
+  }
+
+  ns.onStep(function (step) {
+    packers = step >= 2 ? 3 : +ns.param('packers', 2);
+    render(); caption(step); hide();
+  });
+
+  rate.oninput = function () { demand = +rate.value; render(); };
+
+  function show(i, el) {
+    var s = stages[i], c = s.cap();
+    pop.innerHTML = '<h4>' + s.name + '</h4><p>' + s.note + '</p><p style="margin-top:.4em">Capacity ' + c + ' per hour. Arrivals ' + demand + ' per hour.</p>';
+    var r = el.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(innerWidth - 300, r.left)) + 'px';
+    pop.style.top = Math.max(8, r.top - pop.offsetHeight - 10) + 'px';
+    pop.classList.add('on');
+  }
+  function hide() { pop.classList.remove('on'); }
+  document.addEventListener('click', hide);
+
+  // Flow animation: dots move left to right, faster when more orders ship.
+  var dots = document.getElementById('dots'), speed = 0, raf = 0, last = 0, pos = [];
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for (var d = 0; d < 14; d++) { var e = document.createElement('i'); dots.appendChild(e); pos.push(d / 14); }
+  function tick(t) {
+    var dt = Math.min(50, t - last) / 1000; last = t;
+    dots.childNodes.forEach(function (e, j) {
+      pos[j] = (pos[j] + dt * (0.08 + 0.3 * speed)) % 1;
+      e.style.left = pos[j] * 100 + '%';
+    });
+    raf = requestAnimationFrame(tick);
+  }
+  function start() { if (!raf && !reduce) { last = performance.now(); raf = requestAnimationFrame(tick); } }
+  function stop() { cancelAnimationFrame(raf); raf = 0; }
+  ns.onActivate(start); ns.onDeactivate(stop);
+  if (ns.active) start();
+  render(); caption(ns.step || 0);
+})();
+</script>
+</body>
+</html>

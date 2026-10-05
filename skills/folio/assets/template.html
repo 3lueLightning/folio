@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<link rel="icon" href="__ICON__">
+<meta name="theme-color" content="#0d0f14">
+<style>
+:root{
+  --accent:#2f6df6;
+  --bg:#ffffff; --fg:#14171c; --muted:#5d6570; --line:#e3e6eb;
+  --panel:#f6f7f9; --shadow:0 1px 3px rgba(0,0,0,.08),0 8px 28px rgba(0,0,0,.06);
+  --serif:"Iowan Old Style",Palatino,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+:root[data-theme="dark"]{
+  --bg:#0d0f14; --fg:#e8eaed; --muted:#9aa1ab; --line:#2a2e35;
+  --panel:#1c1f25; --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 28px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+/* Our own display rules beat the default [hidden] styling, so say it outright. */
+[hidden]{display:none!important}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:var(--sans)}
+body{-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.88em;background:var(--panel);padding:.12em .36em;border-radius:4px}
+pre{font-family:var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;overflow:auto;font-size:.82em;line-height:1.55;margin:0}
+pre code{background:none;padding:0;font-size:1em}
+mark{background:color-mix(in srgb,var(--accent) 22%,transparent);color:inherit;padding:.05em .2em;border-radius:3px}
+
+/* ---------- cover for viewers that do not run scripts (Quick Look, mail and Teams previews) ---------- */
+#nojs{position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;justify-content:flex-end;gap:12px;
+  padding:6vmin;background:#0d0f14;color:#fff;font-family:var(--sans)}
+#nojs>*{position:relative;z-index:2}
+#nojs h1{margin:0;font-size:clamp(28px,8vmin,84px);line-height:1.08;letter-spacing:-.025em}
+#nojs p{margin:0;font-size:clamp(14px,3vmin,28px);opacity:.9;max-width:60ch}
+
+/* ---------- chrome ---------- */
+#bar{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);position:fixed;z-index:40;left:50%;transform:translateX(-50%);bottom:18px;
+  display:flex;align-items:center;gap:4px;padding:5px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);
+  opacity:.28;transition:opacity .18s}
+#bar:hover,#bar.show{opacity:1}
+#bar button{all:unset;cursor:pointer;display:grid;place-items:center;width:32px;height:32px;
+  border-radius:999px;color:var(--muted);font-size:14px;line-height:1}
+#bar button:hover{background:var(--bg);color:var(--fg)}
+#bar button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+#bar button.on{background:var(--accent);color:#fff}
+#bar .sep{width:1px;height:18px;background:var(--line);margin:0 3px}
+#count{font-size:12px;color:var(--muted);padding:0 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* A scrolling document has no slide to step through. */
+body.page #bar [data-act="prev"],body.page #bar [data-act="next"],
+body.page #bar [data-act="grid"],body.page #bar [data-act="notes"],
+body.page #bar .sep:first-of-type{display:none}
+#progress{position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:50;
+  width:0;transition:width .2s}
+.hint{position:fixed;bottom:62px;left:50%;transform:translateX(-50%);z-index:41;
+  background:var(--fg);color:var(--bg);font-size:12px;padding:7px 13px;border-radius:7px;
+  opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap}
+.hint.show{opacity:.94}
+
+/* ---------- slides ---------- */
+body.slides{height:100vh;overflow:hidden}
+#stage{position:relative;width:100vw;height:100vh;display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(120% 90% at 85% 0%,color-mix(in srgb,var(--accent) 13%,transparent),transparent 60%),
+             radial-gradient(90% 80% at 0% 100%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 65%)}
+/* two slow, blurred colour orbs drifting behind the slides */
+#stage::before,#stage::after{content:"";position:absolute;width:62vmin;height:62vmin;border-radius:50%;
+  filter:blur(90px);opacity:.26;pointer-events:none;background:var(--accent);
+  animation:drift 28s ease-in-out infinite alternate}
+#stage::before{left:-14vmin;top:-20vmin}
+#stage::after{right:-16vmin;bottom:-24vmin;background:color-mix(in srgb,var(--accent) 45%,#ff5fd2);
+  animation-duration:37s;animation-direction:alternate-reverse}
+:root:not([data-theme="dark"]) #stage::before,:root:not([data-theme="dark"]) #stage::after{opacity:.12}
+@keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(14vmin,9vmin) scale(1.25)}}
+.slide{display:none;width:min(100vw,calc(100vh * 16 / 9));height:min(100vh,calc(100vw * 9 / 16));
+  padding:5.2vmin 6.4vmin;flex-direction:column;justify-content:center;container-type:size}
+.slide.active{display:flex;animation:in .45s cubic-bezier(.2,.7,.2,1)}
+.slide{position:relative;z-index:1}
+@keyframes in{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(2.2cqh)}to{opacity:1;transform:none}}
+.slide.active h1,.slide.active .body>*{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
+.slide.active .body>*:nth-child(1){animation-delay:.08s}.slide.active .body>*:nth-child(2){animation-delay:.18s}
+.slide.active .body>*:nth-child(3){animation-delay:.28s}.slide.active .body>*:nth-child(4){animation-delay:.38s}
+.slide.active .body>*:nth-child(n+5){animation-delay:.46s}
+.slide.active li{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
+.slide.active li:nth-child(1){animation-delay:.22s}.slide.active li:nth-child(2){animation-delay:.34s}
+.slide.active li:nth-child(3){animation-delay:.46s}.slide.active li:nth-child(4){animation-delay:.58s}
+.slide.active li:nth-child(n+5){animation-delay:.7s}
+body.first .slide.active,body.first .slide.active *{animation:none!important}
+@media(prefers-reduced-motion:reduce){.slide.active,.slide.active *,#stage::before,#stage::after{animation:none!important}}
+.slide .body{display:flex;flex-direction:column;gap:2.2cqh;min-height:0;overflow:hidden}
+.slide h1,.slide h2,.slide h3,#doc h1,#doc h2,#doc h3{font-family:var(--head,var(--sans))}
+.brandlogo{position:absolute;z-index:6;height:var(--logo-h,5.5vmin);display:flex;align-items:center;gap:.5em;pointer-events:none}
+.brandlogo img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block}
+.brandlogo span{font:700 calc(var(--logo-h,5.5vmin) * .42) var(--head,var(--sans));color:var(--accent);white-space:nowrap;letter-spacing:-.01em}
+.brandlogo.top-right{top:3.2cqh;right:3.2cqh}.brandlogo.top-left{top:3.2cqh;left:3.2cqh}
+.brandlogo.bottom-right{bottom:3.2cqh;right:3.2cqh}.brandlogo.bottom-left{bottom:3.2cqh;left:3.2cqh}
+#doc .masthead .brandlogo{position:static;margin:0 0 18px;height:44px;--logo-h:44px}
+.slide h1{font-size:clamp(20px,5.4cqh,60px);line-height:1.1;margin:0 0 2.6cqh;letter-spacing:-.025em;font-weight:700}
+.slide h1::after{content:"";display:block;width:2.4em;height:.075em;margin-top:.32em;border-radius:9px;
+  background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 40%,#ff5fd2))}
+.slide.layout-title h1::after,.slide.layout-center h1::after{margin-left:auto;margin-right:auto}
+.slide h2{font-size:clamp(15px,3.4cqh,30px);margin:0;font-weight:620;letter-spacing:-.01em}
+.slide p{font-size:clamp(12px,2.9cqh,23px);line-height:1.5;margin:0;color:var(--fg);max-width:62ch}
+.slide ul,.slide ol{font-size:clamp(12px,2.9cqh,23px);line-height:1.5;margin:0;padding-left:1.15em;max-width:62ch}
+.slide li{margin:0 0 1.1cqh}
+.slide li::marker{color:var(--accent)}
+.slide figure{margin:0;min-height:0;flex:0 1 auto;display:flex;flex-direction:column;
+  justify-content:center;gap:1cqh}
+.slide figure img,.slide figure video{max-width:100%;max-height:52cqh;object-fit:contain;
+  border-radius:10px;display:block;margin:0 auto}
+/* A video has no intrinsic size until metadata arrives, so give it a width
+   rather than letting it sit at the 300x150 default. */
+.slide figure video{width:100%}
+.slide figure audio{width:100%;max-width:520px;margin:0 auto}
+.slide figcaption{font-size:clamp(10px,1.9cqh,14px);color:var(--muted);text-align:center}
+.slide blockquote{margin:0;padding-left:1em;border-left:3px solid var(--accent);
+  font-family:var(--serif);font-size:clamp(14px,3.6cqh,30px);line-height:1.38}
+.slide blockquote cite{display:block;margin-top:1.4cqh;font:500 clamp(10px,1.9cqh,15px) var(--sans);
+  color:var(--muted);font-style:normal}
+.slide pre{max-height:56cqh;font-size:clamp(9px,1.9cqh,15px)}
+.slide table{font-size:clamp(10px,2.2cqh,17px)}
+.slide.layout-title{justify-content:center;text-align:center;align-items:center}
+.slide.layout-title h1{font-size:clamp(26px,9cqh,92px);margin-bottom:2cqh;
+  background:linear-gradient(115deg,var(--fg) 25%,var(--accent) 95%);-webkit-background-clip:text;
+  background-clip:text;-webkit-text-fill-color:transparent}
+.slide.layout-title p{font-size:clamp(14px,3.4cqh,30px);color:var(--muted)}
+.slide.layout-cards ul,.slide.layout-stats ul{list-style:none;padding:0;max-width:none;display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(21cqw,1fr));gap:2.2cqw}
+.slide.layout-cards li,.slide.layout-stats li{margin:0;padding:3cqh 1.8cqw;font-size:.88em;line-height:1.45;
+  background:color-mix(in srgb,var(--panel) 78%,transparent);border:1px solid var(--line);border-radius:16px;
+  backdrop-filter:blur(8px);transition:transform .25s,border-color .25s,box-shadow .25s}
+.slide.layout-cards li:hover,.slide.layout-stats li:hover{transform:translateY(-5px);border-color:var(--accent);
+  box-shadow:0 14px 34px color-mix(in srgb,var(--accent) 22%,transparent)}
+.slide.layout-cards li strong:first-child,.slide.layout-stats li strong:first-child{display:block;
+  font-size:1.3em;color:var(--accent);margin-bottom:.35em;letter-spacing:-.01em}
+.slide.layout-stats li strong:first-child{font-size:3em;font-weight:720;line-height:1.05;
+  background:linear-gradient(115deg,var(--fg),var(--accent));-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent}
+.slide table{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:color-mix(in srgb,var(--panel) 70%,transparent)}
+.slide tbody tr{transition:background .2s}.slide tbody tr:hover{background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.slide tr:last-child td{border-bottom:none}
+.slide.layout-title .body{align-items:center;text-align:center}
+.slide.layout-center{justify-content:center;text-align:center}
+.slide.layout-center .body{align-items:center}
+.slide.layout-split .body,.slide.layout-split-left .body{
+  display:grid;grid-template-columns:1fr 1fr;gap:4.5cqw;align-items:center}
+.slide .col{display:flex;flex-direction:column;gap:2.2cqh;min-width:0;min-height:0;justify-content:center}
+.slide.layout-split .col-media{order:2}
+.slide.layout-split-left .col-media{order:-1}
+.slide.layout-split figure img,.slide.layout-split figure video,
+.slide.layout-split-left figure img,.slide.layout-split-left figure video{max-height:72cqh}
+.slide.layout-full{padding:0;position:relative}
+.slide.layout-full figure{position:absolute;inset:0;margin:0}
+.slide.layout-full figure img,.slide.layout-full figure video{width:100%;height:100%;
+  max-height:none;object-fit:cover;border-radius:0}
+.slide.layout-full figcaption{display:none}
+.slide.layout-full .body>:not(figure){position:relative;z-index:2}
+.slide.layout-full h1{position:relative;z-index:2;font-size:clamp(28px,10cqh,96px);margin-bottom:1.6cqh}
+.slide.layout-full h1,.slide.layout-full .body{color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.6)}
+.slide.layout-full .body{position:static;overflow:visible}
+.slide.layout-full p{color:#fff;font-size:clamp(14px,3.6cqh,32px)}
+.slide.layout-full::after{content:"";position:absolute;inset:0;z-index:1;
+  background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.62))}
+.slide.layout-full{justify-content:flex-end;padding:6vmin}
+#footer{position:fixed;bottom:16px;left:20px;font-size:11px;color:var(--muted);z-index:20;pointer-events:none}
+
+/* ---------- widgets ---------- */
+.widget{position:relative;margin:0;width:100%}
+.widget iframe{display:block;width:100%;border:0;background:transparent;opacity:0;
+  transition:opacity .28s ease}
+.widget iframe.ready{opacity:1}
+.slide .widget iframe{height:calc(var(--wh,56) * 1cqh)}
+#doc .widget{margin:26px 0}
+#doc .widget iframe{height:calc(var(--wh,60) * 7px)}
+.wstep{display:none;align-items:center;justify-content:center;gap:9px;margin-top:6px;min-height:26px}
+.wstep.on{display:flex}
+.wstep button{all:unset;cursor:pointer;width:26px;height:26px;border-radius:999px;display:grid;
+  place-items:center;color:var(--muted)}
+.wstep button:hover{background:var(--panel);color:var(--fg)}
+.wstep button[disabled]{opacity:.3;pointer-events:none}
+.wstep svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.wstep i{display:block;width:7px;height:7px;border-radius:99px;background:var(--line);
+  transition:background .15s,transform .15s}
+.wstep i.done{background:var(--accent)}
+.wstep i.now{transform:scale(1.4)}
+@media print{.widget iframe{opacity:1!important}.wstep{display:none!important}}
+
+/* ---------- page ---------- */
+body.page{overflow-y:auto}
+#doc{max-width:820px;margin:0 auto;padding:72px 28px 160px}
+#doc .masthead{margin-bottom:56px;padding-bottom:26px;border-bottom:1px solid var(--line)}
+#doc .masthead h1{font-size:clamp(28px,5vw,44px);margin:0 0 10px;letter-spacing:-.025em;line-height:1.14}
+#doc .masthead p{color:var(--muted);font-size:17px;margin:0}
+#doc section{margin:0 0 52px;scroll-margin-top:24px}
+#doc h1{font-size:clamp(21px,3.4vw,29px);margin:0 0 18px;letter-spacing:-.015em;line-height:1.25}
+#doc h2{font-size:19px;margin:30px 0 12px;font-weight:620}
+#doc h3{font-size:16px;margin:24px 0 10px;font-weight:620}
+#doc p{font-size:16.5px;line-height:1.68;margin:0 0 17px;color:var(--fg)}
+#doc ul,#doc ol{font-size:16.5px;line-height:1.68;margin:0 0 17px;padding-left:1.3em}
+#doc li{margin-bottom:7px}
+#doc li::marker{color:var(--accent)}
+#doc figure{margin:26px 0}
+#doc figure img,#doc figure video{max-width:100%;border-radius:10px;display:block}
+#doc figcaption{font-size:13.5px;color:var(--muted);margin-top:9px}
+#doc blockquote{margin:24px 0;padding:2px 0 2px 20px;border-left:3px solid var(--accent);
+  font-family:var(--serif);font-size:19px;line-height:1.52}
+#doc blockquote cite{display:block;margin-top:10px;font:500 14px var(--sans);color:var(--muted);font-style:normal}
+#doc pre{margin:0 0 20px}
+#nav{position:fixed;top:0;left:0;width:210px;height:100vh;padding:78px 14px;
+  overflow-y:auto;font-size:13px;border-right:1px solid var(--line);background:var(--bg)}
+#nav a{display:block;padding:6px 10px;border-radius:6px;color:var(--muted);
+  text-decoration:none;line-height:1.35;margin-bottom:1px}
+#nav a:hover{background:var(--panel);color:var(--fg)}
+#nav a.on{color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent);font-weight:550}
+@media(min-width:1180px){body.page #doc{margin-left:max(230px,calc(50% - 410px))}}
+@media(max-width:1179px){#nav{display:none}}
+
+table{border-collapse:collapse;width:100%;margin:0 0 18px}
+th,td{text-align:left;padding:.55em .7em;border-bottom:1px solid var(--line)}
+th{font-weight:620;color:var(--muted);font-size:.9em;letter-spacing:.02em}
+
+/* ---------- overview ---------- */
+#grid{position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;padding:54px 30px 30px;display:none}
+#grid.on{display:block}
+#grid .wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:18px;max-width:1280px;margin:0 auto}
+#grid .card{border:1px solid var(--line);border-radius:9px;padding:13px 14px;cursor:pointer;
+  aspect-ratio:16/9;overflow:hidden;background:var(--panel);transition:border-color .12s,transform .12s}
+#grid .card:hover{border-color:var(--accent);transform:translateY(-2px)}
+#grid .card.on{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
+#grid .card .n{font-size:10px;color:var(--muted);margin-bottom:6px}
+#grid .card .t{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:5px}
+#grid .card .x{font-size:11px;color:var(--muted);line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+#grid h2{max-width:1280px;margin:0 auto 20px;font-size:15px;color:var(--muted);font-weight:550}
+
+/* ---------- notes ---------- */
+#notes{position:fixed;left:0;right:0;bottom:0;z-index:30;max-height:32vh;overflow-y:auto;
+  padding:16px 24px 62px;background:var(--panel);border-top:1px solid var(--line);
+  font-size:14px;line-height:1.55;color:var(--muted);display:none}
+#notes.on{display:block}
+#notes b{color:var(--fg);display:block;margin-bottom:5px;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+
+/* ---------- edit ---------- */
+body.editing [data-path]{outline:1px dashed transparent;outline-offset:3px;border-radius:3px;
+  transition:outline-color .12s,background .12s}
+body.editing [data-path]:hover{outline-color:color-mix(in srgb,var(--accent) 45%,transparent);
+  background:color-mix(in srgb,var(--accent) 5%,transparent)}
+body.editing [data-path]:focus{outline:2px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+[data-path][contenteditable]{white-space:pre-wrap}
+#edithint{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:45;
+  background:var(--accent);color:#fff;font-size:12px;padding:6px 14px;border-radius:999px;display:none}
+body.editing #edithint{display:block}
+#dirty{width:6px;height:6px;border-radius:999px;background:#e5a13a;display:none;margin-left:2px}
+#dirty.on{display:block}
+
+/* ---------- dialog ---------- */
+#dlg{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.45);display:none;
+  place-items:center;padding:20px}
+#dlg.on{display:grid}
+#dlg .box{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:26px 28px;
+  max-width:490px;width:100%;box-shadow:var(--shadow)}
+#dlg h3{margin:0 0 10px;font-size:17px}
+#dlg p{margin:0 0 18px;font-size:14px;line-height:1.6;color:var(--muted)}
+#dlg .row{display:flex;gap:9px;flex-wrap:wrap}
+#dlg button{all:unset;cursor:pointer;padding:9px 15px;border-radius:8px;font-size:13.5px;
+  font-weight:550;border:1px solid var(--line);color:var(--fg)}
+#dlg button:hover{background:var(--panel)}
+#dlg button.primary{background:var(--accent);color:#fff;border-color:transparent}
+#dlg button.primary:hover{filter:brightness(1.08)}
+#dlg kbd{font-family:var(--mono);font-size:11px;background:var(--panel);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px}
+#help table{font-size:13px}
+#help td{padding:.35em .6em;border:none}
+#help td:first-child{width:90px}
+
+@media print{
+  #bar,#nav,#grid,#notes,#progress,#edithint,#dlg,.hint,#footer{display:none!important}
+  body.slides,html{height:auto;overflow:visible}
+  #stage{display:block;width:auto;height:auto}
+  .slide{display:flex!important;width:100%;height:auto;min-height:auto;
+    page-break-after:always;break-after:page;padding:10mm 12mm}
+  #doc{max-width:none;margin:0;padding:0}
+}
+</style>
+<style id="brand">__BRANDCSS__</style>
+</head>
+<body>
+<div id="nojs"__COVERSTYLE__>__COVER__</div>
+<div id="progress"></div>
+<div id="edithint">Edit mode - click any text to change it</div>
+<div id="stage" hidden></div>
+<div id="doc" hidden></div>
+<nav id="nav" hidden></nav>
+<div id="footer"></div>
+<div id="notes"></div>
+<div id="grid"><h2>All sections - click to jump</h2><div class="wrap"></div></div>
+<div class="hint" id="hint"></div>
+<div id="dlg"><div class="box" id="dlgbox"></div></div>
+
+<div id="bar">
+  <button data-act="prev" title="Previous"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <span id="count"></span>
+  <button data-act="next" title="Next"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+  <span class="sep"></span>
+  <button data-act="grid" title="Overview (O)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7.5" height="7"/><rect x="13.5" y="4" width="7.5" height="7"/><rect x="3" y="13" width="7.5" height="7"/><rect x="13.5" y="13" width="7.5" height="7"/></svg></button>
+  <button data-act="notes" title="Speaker notes (N)"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>
+  <button data-act="theme" title="Light / dark (T)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" /><path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/></svg></button>
+  <span class="sep"></span>
+  <button data-act="sound" title="Background sound (M)" hidden><svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 010 6"/><path d="M18 6.5a7.5 7.5 0 010 11"/></svg></button>
+  <button data-act="edit" title="Edit mode (E)"><svg viewBox="0 0 24 24"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 00-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/></svg></button>
+  <button data-act="save" title="Save changes (Ctrl+S)"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M4 18v2h16v-2"/></svg></button>
+  <span id="dirty"></span>
+  <span class="sep"></span>
+  <button data-act="help" title="Keyboard shortcuts (?)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 114 2.2c-.9.6-1.6 1-1.6 2"/><circle cx="12" cy="16.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
+</div>
+
+<script id="folio-widget-runtime" type="text/plain">
+/* folio widget runtime. Injected into every widget frame. */
+(function(){
+  var BOOT = __BOOT__;
+  var H = { activate: [], deactivate: [], step: [], theme: [] };
+  var S = { active: false, step: 0, steps: 0, theme: BOOT.theme };
+
+  function post(m){ m.folio = 1; try { parent.postMessage(m, "*"); } catch(e){} }
+  function run(list, a, b){
+    list.slice().forEach(function(fn){ try { fn(a, b); } catch(e){ console.error(e); } });
+  }
+  function applyVars(v){
+    var r = document.documentElement;
+    for (var k in v){ if (v[k]) r.style.setProperty(k, v[k]); }
+  }
+  document.documentElement.setAttribute("data-theme", BOOT.theme);
+
+  window.folio = {
+    params: BOOT.params,
+    param: function(name, fallback){
+      var v = BOOT.params[name];
+      if (v === undefined) return fallback;
+      if (v === "true") return true;
+      if (v === "false") return false;
+      if (v !== "" && !isNaN(Number(v))) return Number(v);
+      return v;
+    },
+    get theme(){ return S.theme; },
+    get active(){ return S.active; },
+    get step(){ return S.step; },
+    get steps(){ return S.steps; },
+    setSteps: function(n){ S.steps = Math.max(0, n | 0); post({ type: "steps", n: S.steps }); },
+    goto: function(n){ post({ type: "goto", step: n | 0 }); },
+    onActivate: function(fn){ H.activate.push(fn); if (S.active) run([fn]); },
+    onDeactivate: function(fn){ H.deactivate.push(fn); },
+    onStep: function(fn){ H.step.push(fn); if (S.step) run([fn], S.step, 0); },
+    onTheme: function(fn){ H.theme.push(fn); }
+  };
+
+  addEventListener("message", function(e){
+    var m = e.data;
+    if (e.source !== parent || !m || m.folio !== 1 || m.type !== "state") return;
+    var was = { active: S.active, step: S.step, theme: S.theme };
+    if (m.vars) applyVars(m.vars);
+    S.theme = m.theme; S.active = !!m.active; S.step = m.step | 0;
+    document.documentElement.setAttribute("data-theme", S.theme);
+    if (was.theme !== S.theme) run(H.theme, S.theme);
+    if (was.active !== S.active) run(S.active ? H.activate : H.deactivate);
+    if (was.step !== S.step) run(H.step, S.step, was.step);
+  });
+
+  /* Keys pressed while the frame has focus still drive the deck. */
+  var FWD = { ArrowRight:1, ArrowLeft:1, PageDown:1, PageUp:1, " ":1, Home:1, End:1,
+              Escape:1, o:1, O:1, n:1, N:1, e:1, E:1, t:1, T:1, f:1, F:1, m:1, M:1, "?":1 };
+  addEventListener("keydown", function(e){
+    var k = e.key, t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (e.ctrlKey || e.metaKey){
+      if (k === "s" || k === "S"){ e.preventDefault(); post({ type: "key", key: k, ctrl: true }); }
+      return;
+    }
+    if (e.altKey || !FWD[k]) return;
+    if (k === " " || k.indexOf("Arrow") === 0 || k.indexOf("Page") === 0) e.preventDefault();
+    post({ type: "key", key: k });
+  });
+
+  function ready(){ post({ type: "ready" }); }
+  if (document.readyState === "complete") ready(); else addEventListener("load", ready);
+})();
+</script>
+<script id="folio-model" type="application/json">__MODEL__</script>
+<script id="folio-assets" type="application/json">__ASSETS__</script>
+<script>
+(function(){
+"use strict";
+
+var MODEL  = JSON.parse(document.getElementById("folio-model").textContent);
+var ASSETS = JSON.parse(document.getElementById("folio-assets").textContent);
+(function(){ var n = document.getElementById("nojs"); if (n) n.remove(); })();
+var META   = MODEL.meta || {};
+var SECTIONS = MODEL.blocks || [];
+
+var SLIDES  = META.format !== "page";
+var KEY     = "folio:" + (META.docId || META.title || "doc");
+var edits   = {};          // path -> new value, the only thing we ever export
+var index   = 0;
+var served  = false;       // true when a local folio server is answering
+var dirty   = false;
+var editing = false;
+
+/* ---------------- helpers ---------------- */
+
+function el(tag, cls, text){
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+function esc(s){
+  return String(s).replace(/[&<>"]/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];
+  });
+}
+/* Minimal inline Markdown. Deliberately small: bold, italic, code, strike,
+   highlight and links. Anything more belongs in the source file. */
+function inline(s){
+  var out = esc(s == null ? "" : s);
+  out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+                    '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/(^|\W)\*([^*\n]+)\*(?=\W|$)/g, "$1<em>$2</em>");
+  out = out.replace(/(^|\W)_([^_\n]+)_(?=\W|$)/g, "$1<em>$2</em>");
+  out = out.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+  out = out.replace(/==([^=]+)==/g, "<mark>$1</mark>");
+  return out;
+}
+function dataUri(a){
+  return a && a.data ? "data:" + a.mime + ";base64," + a.data : "";
+}
+function toast(msg){
+  var h = document.getElementById("hint");
+  h.textContent = msg; h.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ h.classList.remove("show"); }, 2200);
+}
+function setDirty(on){
+  dirty = on;
+  document.getElementById("dirty").classList.toggle("on", on);
+}
+
+/* Bind an editable string. `path` is like "s1c2.text" or "s1c2.items.0". */
+function bind(node, path, raw){
+  node.setAttribute("data-path", path);
+  node.__raw = raw == null ? "" : String(raw);
+  return node;
+}
+
+function readPath(path){
+  if (edits.hasOwnProperty(path)) return edits[path];
+  return null;
+}
+function rawOf(path, fallback){
+  var v = readPath(path);
+  return v === null ? fallback : v;
+}
+
+/* ---------------- rendering ---------------- */
+
+function renderContent(item, host, slideMode){
+  var t = item.type, id = item.id, node;
+
+  if (t === "p"){
+    node = el("p");
+    var txt = rawOf(id + ".text", item.text);
+    node.innerHTML = inline(txt);
+    bind(node, id + ".text", txt);
+    host.appendChild(node);
+
+  } else if (t === "heading"){
+    var lvl = Math.max(2, Math.min(4, item.level || 2));
+    node = el("h" + lvl);
+    var ht = rawOf(id + ".text", item.text);
+    node.innerHTML = inline(ht);
+    bind(node, id + ".text", ht);
+    host.appendChild(node);
+
+  } else if (t === "bullets"){
+    var list = el(item.ordered ? "ol" : "ul");
+    (item.items || []).forEach(function(entry, i){
+      var p = id + ".items." + i;
+      var v = rawOf(p, entry);
+      var li = el("li");
+      li.innerHTML = inline(v);
+      bind(li, p, v);
+      list.appendChild(li);
+    });
+    host.appendChild(list);
+
+  } else if (t === "widget"){
+    host.appendChild(makeWidget(item.html, item.params, id, "Interactive diagram"));
+
+  } else if (t === "media"){
+    var a = ASSETS[item.asset];
+    if (a && a.kind === "widget" && !a.missing){
+      host.appendChild(makeWidget(a.html, item.params, id, item.caption || "Interactive diagram"));
+      return;
+    }
+    var fig = el("figure");
+    if (!a || a.missing){
+      var miss = el("div");
+      miss.style.cssText = "border:1px dashed var(--line);border-radius:9px;padding:22px;" +
+                           "color:var(--muted);font-size:13px;text-align:center";
+      miss.textContent = "Missing media: " + ((a && a.src) || item.asset);
+      fig.appendChild(miss);
+    } else if (a.kind === "video"){
+      var v = el("video");
+      v.controls = true; v.playsInline = true; v.preload = "metadata";
+      v.setAttribute("data-asset", item.asset);
+      fig.appendChild(v);
+    } else if (a.kind === "audio"){
+      var au = el("audio");
+      au.controls = true; au.preload = "none";
+      au.style.width = "100%";
+      au.setAttribute("data-asset", item.asset);
+      fig.appendChild(au);
+    } else {
+      // No lazy loading: the bytes are already in the page, and a lazy image
+      // inside a hidden slide never decodes, so it renders blank on arrival.
+      var img = el("img");
+      img.src = dataUri(a);
+      img.alt = item.caption || "";
+      fig.appendChild(img);
+    }
+    var capRaw = rawOf(id + ".caption", item.caption);
+    if (capRaw || editing){
+      var cap = el("figcaption");
+      cap.innerHTML = inline(capRaw);
+      bind(cap, id + ".caption", capRaw);
+      fig.appendChild(cap);
+    }
+    host.appendChild(fig);
+
+  } else if (t === "quote"){
+    var bq = el("blockquote");
+    var qraw = rawOf(id + ".text", item.text);
+    var span = el("span");
+    span.innerHTML = inline(qraw);
+    bind(span, id + ".text", qraw);
+    bq.appendChild(span);
+    var craw = rawOf(id + ".cite", item.cite);
+    if (craw){
+      var cite = el("cite");
+      cite.textContent = craw;
+      bind(cite, id + ".cite", craw);
+      bq.appendChild(cite);
+    }
+    host.appendChild(bq);
+
+  } else if (t === "code"){
+    var pre = el("pre"), c = el("code");
+    c.textContent = rawOf(id + ".text", item.text);
+    pre.appendChild(c);
+    host.appendChild(pre);
+
+  } else if (t === "table"){
+    var tbl = el("table"), thead = el("thead"), hr = el("tr");
+    (item.head || []).forEach(function(h, i){
+      var th = el("th");
+      var p = id + ".head." + i, v = rawOf(p, h);
+      th.innerHTML = inline(v);
+      bind(th, p, v);
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr); tbl.appendChild(thead);
+    var tb = el("tbody");
+    (item.rows || []).forEach(function(row, ri){
+      var tr = el("tr");
+      row.forEach(function(cell, ci){
+        var td = el("td");
+        var p = id + ".rows." + ri + "." + ci, v = rawOf(p, cell);
+        td.innerHTML = inline(v);
+        bind(td, p, v);
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    tbl.appendChild(tb);
+    host.appendChild(tbl);
+  }
+}
+
+// The logo is a picture plus, when the brand has one, the name set in the heading font.
+function brandLogo(cls){
+  var box = el("div", cls + (META.logoText ? " withtext" : ""));
+  var img = el("img"); img.src = META.logo; img.alt = "";
+  box.appendChild(img);
+  if (META.logoText) box.appendChild(el("span", "", META.logoText));
+  box.setAttribute("data-brandlogo", "1");
+  return box;
+}
+
+function renderSlides(){
+  var stage = document.getElementById("stage");
+  stage.hidden = false;
+  stage.innerHTML = "";
+  SECTIONS.forEach(function(s, i){
+    var sl = el("div", "slide layout-" + (s.layout || "default"));
+    sl.setAttribute("data-i", i);
+    if (META.logo){
+      var lg = brandLogo("brandlogo " + (META.logoWhere || "top-right"));
+      if (META.logoHeight) lg.style.setProperty("--logo-h", META.logoHeight);
+      sl.appendChild(lg);
+    }
+    var title = rawOf(s.id + ".title", s.title);
+    if (title){
+      var h = el("h1");
+      h.innerHTML = inline(title);
+      bind(h, s.id + ".title", title);
+      sl.appendChild(h);
+    }
+    var body = el("div", "body");
+    var split = (s.layout === "split" || s.layout === "split-left");
+    if (split){
+      // Two explicit columns beat CSS grid row-spanning, which needs an
+      // explicit row count the content does not have.
+      var text = el("div", "col col-text");
+      var mediaCol = el("div", "col col-media");
+      (s.content || []).forEach(function(item){
+        var toMedia = item.type === "media" || item.type === "widget";
+        renderContent(item, toMedia ? mediaCol : text, true);
+      });
+      body.appendChild(text);
+      body.appendChild(mediaCol);
+    } else {
+      (s.content || []).forEach(function(item){ renderContent(item, body, true); });
+    }
+    sl.appendChild(body);
+    sl.querySelectorAll(".widget").forEach(function(n){ n.__w.slide = i; });
+    stage.appendChild(sl);
+  });
+  document.getElementById("footer").textContent = META.footer || "";
+  if (ASSETS.bgsound && !ASSETS.bgsound.missing) document.querySelector('[data-act="sound"]').hidden = false;
+  buildGrid();
+  show(index);
+}
+
+function renderPage(){
+  var doc = document.getElementById("doc");
+  doc.hidden = false;
+  doc.innerHTML = "";
+
+  var head = el("div", "masthead");
+  if (META.logo){
+    head.appendChild(brandLogo("brandlogo"));
+  }
+  var h1 = el("h1");
+  var t = rawOf("meta.title", META.title);
+  h1.innerHTML = inline(t);
+  bind(h1, "meta.title", t);
+  head.appendChild(h1);
+  var sub = rawOf("meta.subtitle", META.subtitle);
+  if (sub){
+    var p = el("p");
+    p.innerHTML = inline(sub);
+    bind(p, "meta.subtitle", sub);
+    head.appendChild(p);
+  }
+  doc.appendChild(head);
+
+  SECTIONS.forEach(function(s, i){
+    var sec = el("section");
+    sec.id = "sec-" + i;
+    var title = rawOf(s.id + ".title", s.title);
+    // A deck's title slide would repeat the masthead heading word for word.
+    var isCover = i === 0 && s.layout === "title";
+    if (title && !isCover){
+      var h = el("h1");
+      h.innerHTML = inline(title);
+      bind(h, s.id + ".title", title);
+      sec.appendChild(h);
+    }
+    (s.content || []).forEach(function(item){ renderContent(item, sec, false); });
+    doc.appendChild(sec);
+  });
+
+  var nav = document.getElementById("nav");
+  nav.hidden = false;
+  nav.innerHTML = "";
+  SECTIONS.forEach(function(s, i){
+    if (!s.title || (i === 0 && s.layout === "title")) return;
+    var a = el("a", null, rawOf(s.id + ".title", s.title));
+    a.href = "#sec-" + i;
+    nav.appendChild(a);
+  });
+  observeSections();
+  loadAllMedia();
+  observeWidgets();
+  document.getElementById("count").textContent = SECTIONS.length + " sections";
+}
+
+function observeSections(){
+  var links = [].slice.call(document.querySelectorAll("#nav a"));
+  if (!links.length || !window.IntersectionObserver) return;
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (!e.isIntersecting) return;
+      links.forEach(function(l){
+        l.classList.toggle("on", l.getAttribute("href") === "#" + e.target.id);
+      });
+    });
+  }, { rootMargin: "-10% 0px -75% 0px" });
+  document.querySelectorAll("#doc section").forEach(function(s){ io.observe(s); });
+}
+
+/* Heavy media is attached only when its slide is reached, so the first paint
+   is not blocked by decoding every embedded video. */
+function loadMedia(root){
+  root.querySelectorAll("[data-asset]").forEach(function(n){
+    if (n.src) return;
+    var a = ASSETS[n.getAttribute("data-asset")];
+    if (a) n.src = dataUri(a);
+  });
+}
+function loadAllMedia(){ loadMedia(document); }
+
+function buildGrid(){
+  var wrap = document.querySelector("#grid .wrap");
+  wrap.innerHTML = "";
+  SECTIONS.forEach(function(s, i){
+    var card = el("div", "card");
+    card.appendChild(el("div", "n", "Slide " + (i + 1)));
+    var heading = (s.content || []).filter(function(c){ return c.type === "heading"; })[0];
+    var widgetItem = (s.content || []).filter(function(c){
+      return c.type === "media" && c.caption && ASSETS[c.asset] && ASSETS[c.asset].kind === "widget";
+    })[0];
+    var label = rawOf(s.id + ".title", s.title) ||
+                (heading ? rawOf(heading.id + ".text", heading.text) : "") ||
+                (widgetItem ? widgetItem.caption : "") ||
+                "Untitled";
+    card.appendChild(el("div", "t", label));
+    var bits = [];
+    (s.content || []).forEach(function(c){
+      if (c.type === "p") bits.push(rawOf(c.id + ".text", c.text));
+      else if (c.type === "bullets") bits.push((c.items || []).join(" - "));
+      else if (c.type === "widget" || (c.type === "media" && ASSETS[c.asset] && ASSETS[c.asset].kind === "widget")) bits.push("[interactive]");
+      else if (c.type === "media") bits.push("[media]");
+    });
+    var plain = bits.join(" ").replace(/[*_`~=]{1,2}/g, "");
+    card.appendChild(el("div", "x", plain.slice(0, 180)));
+    card.onclick = function(){ show(i); toggleGrid(false); };
+    wrap.appendChild(card);
+  });
+}
+
+var booted = false;
+function show(i){
+  // The very first view appears fully drawn (no entrance animation), so a
+  // thumbnail or preview taken at load shows the cover, not a blank slide.
+  if (booted) document.body.classList.remove("first");
+  booted = true;
+  if (!SLIDES) return;
+  var previous = index;
+  index = Math.max(0, Math.min(SECTIONS.length - 1, i));
+  // Stepping back one slide lands on the last step of its animation.
+  var arrival = (previous - index === 1) ? -1 : 1;
+  var slides = document.querySelectorAll(".slide");
+  slides.forEach(function(s, n){
+    var on = n === index;
+    s.classList.toggle("active", on);
+    if (on) loadMedia(s);
+    else s.querySelectorAll("video,audio").forEach(function(m){ try { m.pause(); } catch(e){} });
+  });
+  document.getElementById("count").textContent = (index + 1) + " / " + SECTIONS.length;
+  document.getElementById("progress").style.width =
+    ((index + 1) / SECTIONS.length * 100) + "%";
+  var notes = SECTIONS[index].notes || "";
+  var box = document.getElementById("notes");
+  box.innerHTML = "";
+  if (notes){
+    box.appendChild(el("b", null, "Speaker notes"));
+    box.appendChild(el("div", null, notes));
+  }
+  document.querySelectorAll("#grid .card").forEach(function(c, n){
+    c.classList.toggle("on", n === index);
+  });
+  try { history.replaceState(null, "", "#" + (index + 1)); } catch(e){}
+  syncWidgets(arrival);
+}
+
+/* ---------------- widgets ---------------- */
+
+var WIDGETS = [];
+var printing = false;
+var RUNTIME = (document.getElementById("folio-widget-runtime") || {}).textContent || "";
+// Widgets are self-contained on purpose: no network, no outside files. That is
+// what lets a document go to people outside the company without surprises.
+var WIDGET_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; " +
+                 "img-src data: blob:; media-src data: blob:; font-src data:";
+var THEME_VARS = ["--bg", "--fg", "--muted", "--line", "--panel", "--accent",
+                  "--serif", "--sans", "--head", "--mono",
+                  "--c1", "--c2", "--c3", "--c4", "--c5", "--c6"];
+
+function currentTheme(){
+  return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+}
+function themeVars(){
+  var cs = getComputedStyle(document.documentElement), out = {};
+  THEME_VARS.forEach(function(k){ out[k] = cs.getPropertyValue(k).trim(); });
+  return out;
+}
+
+var FACES = null;
+// Brand fonts are declared once in the page; widgets are sandboxed and need their own copy.
+function brandFaces(){
+  if (FACES === null){
+    var node = document.getElementById("brand"), css = node ? node.textContent : "";
+    FACES = (css.match(/@font-face\s*\{[^}]*\}/g) || []).join("");
+  }
+  return FACES;
+}
+
+function widgetDoc(w){
+  var vars = themeVars();
+  Object.keys(vars).forEach(function(k){ if (!vars[k]) delete vars[k]; });
+  var decl = Object.keys(vars).map(function(k){ return k + ":" + vars[k]; }).join(";");
+  var boot = JSON.stringify({ params: w.params, vars: vars, theme: currentTheme() })
+               .replace(/</g, "\\u003c");
+  var head =
+    '<meta charset="utf-8">' +
+    '<meta http-equiv="Content-Security-Policy" content="' + WIDGET_CSP + '">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    // No color-scheme here: declaring one that differs from the deck makes the
+    // browser paint an opaque canvas behind the frame.
+    "<style>" + brandFaces() + ":root{" + decl + "}" +
+    "*{box-sizing:border-box}html,body{margin:0;padding:0;width:100%;height:100%;" +
+    "overflow:hidden;background:transparent;color:var(--fg);font-family:var(--sans)}</style>" +
+    "<script>" + RUNTIME.split("__BOOT__").join(boot) + "<\/script>";
+
+  var html = w.html || "", m;
+  // The security policy goes first so nothing in the widget can run before it.
+  if ((m = /<head(\s[^>]*)?>/i.exec(html))){
+    var at = m.index + m[0].length;
+    return html.slice(0, at) + head + html.slice(at);
+  }
+  if ((m = /<html(\s[^>]*)?>/i.exec(html))){
+    var at2 = m.index + m[0].length;
+    return html.slice(0, at2) + "<head>" + head + "</head>" + html.slice(at2);
+  }
+  return "<!doctype html><html><head>" + head + "</head><body>" + html + "</body></html>";
+}
+
+function makeWidget(html, params, id, title){
+  var p = params || {};
+  var wrap = el("div", "widget");
+  var h = parseFloat(p.height);
+  if (h > 0) wrap.style.setProperty("--wh", String(h));
+  var frame = el("iframe");
+  frame.setAttribute("sandbox", "allow-scripts");
+  frame.setAttribute("title", title || "Interactive diagram");
+  frame.setAttribute("scrolling", "no");
+  var stepper = el("div", "wstep");
+  wrap.appendChild(frame);
+  wrap.appendChild(stepper);
+  var w = { id: id, html: html || "", params: p, wrap: wrap, frame: frame, stepper: stepper,
+            loaded: false, ready: false, active: false, step: 0,
+            steps: parseInt(p.steps, 10) || 0, arrival: 1, slide: -1 };
+  wrap.__w = w;
+  WIDGETS.push(w);
+  drawStepper(w);
+  return wrap;
+}
+
+function loadWidget(w){
+  if (w.loaded) return;
+  w.loaded = true;
+  w.frame.srcdoc = widgetDoc(w);
+}
+
+function sendState(w){
+  if (!w.ready || !w.frame.contentWindow) return;
+  try {
+    w.frame.contentWindow.postMessage({
+      folio: 1, type: "state",
+      active: printing ? true : w.active,
+      step: printing ? w.steps : w.step,
+      theme: currentTheme(), vars: themeVars()
+    }, "*");
+  } catch(e){}
+}
+
+var ICON_PREV = '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>';
+var ICON_NEXT = '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
+
+function drawStepper(w){
+  var box = w.stepper;
+  box.innerHTML = "";
+  box.classList.toggle("on", w.steps > 0);
+  if (w.steps < 1) return;
+  var prev = el("button"); prev.innerHTML = ICON_PREV; prev.title = "Previous step";
+  prev.disabled = w.step <= 0;
+  prev.onclick = function(){ stepWidget(w, -1); };
+  box.appendChild(prev);
+  for (var k = 1; k <= w.steps; k++){
+    var dot = el("i");
+    if (k <= w.step) dot.className = "done";
+    if (k === w.step) dot.className = "done now";
+    box.appendChild(dot);
+  }
+  var next = el("button"); next.innerHTML = ICON_NEXT; next.title = "Next step";
+  next.disabled = w.step >= w.steps;
+  next.onclick = function(){ stepWidget(w, 1); };
+  box.appendChild(next);
+}
+
+function stepWidget(w, dir){
+  var n = Math.max(0, Math.min(w.steps, w.step + dir));
+  if (n === w.step) return false;
+  w.step = n;
+  drawStepper(w);
+  sendState(w);
+  return true;
+}
+
+/* The next or previous action first steps through an animation on the
+   current slide, and only moves to another slide when none is left. */
+function advanceWidgets(dir){
+  if (!SLIDES) return false;
+  for (var i = 0; i < WIDGETS.length; i++){
+    var w = WIDGETS[i];
+    if (w.active && w.steps > 0 && stepWidget(w, dir)) return true;
+  }
+  return false;
+}
+function go(dir){
+  if (!advanceWidgets(dir)) show(index + dir);
+}
+
+function syncWidgets(arrival){
+  WIDGETS.forEach(function(w){
+    var on = w.slide === index;
+    if (on === w.active) return;
+    w.active = on;
+    if (on){
+      w.arrival = arrival;
+      w.step = arrival < 0 ? w.steps : 0;
+      loadWidget(w);
+    }
+    drawStepper(w);
+    sendState(w);
+  });
+}
+
+/* In a scrolling document a widget runs while it is on screen. */
+function observeWidgets(){
+  WIDGETS.forEach(loadWidget);
+  if (!window.IntersectionObserver){
+    WIDGETS.forEach(function(w){ w.active = true; sendState(w); });
+    return;
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      var w = en.target.__w, on = en.intersectionRatio >= 0.3;
+      if (on === w.active) return;
+      w.active = on;
+      sendState(w);
+    });
+  }, { threshold: [0, 0.3, 0.6] });
+  WIDGETS.forEach(function(w){ io.observe(w.wrap); });
+}
+
+window.addEventListener("message", function(e){
+  var m = e.data;
+  if (!m || m.folio !== 1) return;
+  var w = null;
+  for (var i = 0; i < WIDGETS.length; i++){
+    if (WIDGETS[i].frame.contentWindow === e.source){ w = WIDGETS[i]; break; }
+  }
+  if (!w) return;
+  if (m.type === "ready"){
+    w.ready = true;
+    w.frame.classList.add("ready");
+    sendState(w);
+  } else if (m.type === "steps"){
+    w.steps = Math.max(0, m.n | 0);
+    if (w.active && w.arrival < 0){ w.step = w.steps; w.arrival = 1; }
+    w.step = Math.min(w.step, w.steps);
+    drawStepper(w);
+    sendState(w);
+  } else if (m.type === "goto"){
+    w.step = Math.max(0, Math.min(w.steps, m.step | 0));
+    drawStepper(w);
+    sendState(w);
+  } else if (m.type === "key"){
+    handleKey({ key: m.key, ctrlKey: !!m.ctrl, metaKey: !!m.meta, altKey: false,
+                target: document.body, preventDefault: function(){} });
+  }
+});
+
+/* A printed page cannot be stepped, so widgets show their final step. */
+window.addEventListener("beforeprint", function(){
+  printing = true;
+  WIDGETS.forEach(function(w){ loadWidget(w); sendState(w); });
+});
+window.addEventListener("afterprint", function(){
+  printing = false;
+  WIDGETS.forEach(sendState);
+});
+
+/* ---------------- edit mode ---------------- */
+
+var EDIT_MODE = (function(){
+  // Older Firefox does not know "plaintext-only" and would silently refuse to edit.
+  try {
+    var d = document.createElement("div");
+    d.setAttribute("contenteditable", "plaintext-only");
+    return d.contentEditable === "plaintext-only" ? "plaintext-only" : "true";
+  } catch (err) { return "true"; }
+})();
+
+function setEditing(on){
+  // Leave the text being edited first, so its change is recorded before edit mode ends.
+  if (!on && document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  editing = on;
+  document.body.classList.toggle("editing", on);
+  document.querySelector('[data-act="edit"]').classList.toggle("on", on);
+  document.querySelectorAll("[data-path]").forEach(function(n){
+    if (on) n.setAttribute("contenteditable", EDIT_MODE);
+    else {
+      n.removeAttribute("contenteditable");
+      n.innerHTML = inline(n.__raw);
+    }
+  });
+  if (on) toast("Edit mode on. Click any text. Press E to finish.");
+}
+
+// While a piece of text has the cursor it shows its plain source (so **bold**
+// marks can be changed). When the cursor leaves it goes back to looking normal.
+document.addEventListener("focusin", function(e){
+  var n = e.target;
+  if (!editing || !n.hasAttribute || !n.hasAttribute("data-path")) return;
+  if (n.textContent === n.__raw) return;
+  n.textContent = n.__raw;
+  var r = document.createRange(); r.selectNodeContents(n); r.collapse(false);
+  var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+});
+
+document.addEventListener("paste", function(e){
+  var n = e.target;
+  if (!editing || !n.isContentEditable) return;
+  e.preventDefault();
+  var t = (e.clipboardData || window.clipboardData).getData("text");
+  document.execCommand("insertText", false, t);
+});
+
+document.addEventListener("focusout", function(e){
+  var n = e.target;
+  if (!editing || !n.hasAttribute || !n.hasAttribute("data-path")) return;
+  var value = n.textContent;
+  if (value !== n.__raw){
+    n.__raw = value;
+    edits[n.getAttribute("data-path")] = value;
+    setDirty(true);
+    autosave();
+    if (SLIDES) buildGrid();
+  }
+  n.innerHTML = inline(n.__raw);
+});
+
+/* ---------------- persistence ---------------- */
+
+function autosave(){
+  try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), edits: edits })); }
+  catch(e){ /* private window or storage disabled: edits stay in memory */ }
+}
+function restore(){
+  var raw;
+  try { raw = localStorage.getItem(KEY); } catch(e){ return; }
+  if (!raw) return;
+  try {
+    var saved = JSON.parse(raw);
+    if (saved && saved.edits && Object.keys(saved.edits).length){
+      edits = saved.edits;
+      setDirty(true);
+      var when = new Date(saved.t);
+      setTimeout(function(){
+        toast("Restored your unsaved edits from " + when.toLocaleString());
+      }, 500);
+    }
+  } catch(e){}
+}
+
+function detectServer(){
+  if (!/^https?:$/.test(location.protocol)) return Promise.resolve(false);
+  return fetch("__folio/ping", { method: "GET" })
+    .then(function(r){ return r.ok; })
+    .catch(function(){ return false; });
+}
+
+var fileHandle = null;   // set once the person picks where to save (Chrome, Edge)
+
+function save(){
+  if (!Object.keys(edits).length){ toast("No changes to save."); return; }
+  if (served) return saveToServer();
+  return saveFile();
+}
+
+function savedOk(message){
+  setDirty(false);
+  try { localStorage.removeItem(KEY); } catch(e){}
+  toast(message);
+}
+
+/* One step, no dialog. Chrome and Edge can write straight over the original file
+   (the person picks it once). Everything else downloads a finished copy. */
+function saveFile(){
+  var text = htmlText();
+  var name = window.showSaveFilePicker ? currentFileName() : editedFileName();
+  if (window.showSaveFilePicker){
+    var ready = fileHandle ? Promise.resolve(fileHandle) :
+      window.showSaveFilePicker({ suggestedName: name, id: "folio", startIn: "downloads", types: [{ description: "HTML document", accept: { "text/html": [".html"] } }] });
+    ready.then(function(h){
+      fileHandle = h;
+      return h.createWritable().then(function(w){ return w.write(text).then(function(){ return w.close(); }); })
+        .then(function(){ savedOk('Saved as "' + h.name + '". A copy in another folder leaves the file you opened unchanged.'); });
+    }).catch(function(err){
+      if (err && err.name === "AbortError") return;      // person closed the picker
+      fileHandle = null; downloadCopy(text, name);
+    });
+    return;
+  }
+  downloadCopy(text, name);
+}
+
+function downloadCopy(text, name){
+  download(name, text, "text/html");
+  savedOk("Saved as " + name + " in your Downloads folder. Open that copy next time.");
+}
+
+/* The file the person actually opened, so saving under the same name in the same
+   folder replaces it. */
+function currentFileName(){
+  try {
+    var n = decodeURIComponent(location.pathname.split("/").pop() || "");
+    if (/\.html?$/i.test(n)) return n;
+  } catch(e){}
+  return baseName() + ".html";
+}
+function editedFileName(){
+  var n = currentFileName().replace(/\.html?$/i, "");
+  return (/-edited$/.test(n) ? n : n + "-edited") + ".html";
+}
+function baseName(){ return (META.title || "document").replace(/[^\w\-]+/g, "-").toLowerCase(); }
+
+function saveToServer(){
+  toast("Saving...");
+  fetch("__folio/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ docId: META.docId, edits: edits })
+  })
+  .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+  .then(function(res){
+    if (!res.ok || res.j.error) throw new Error(res.j.error || "save failed");
+    edits = {};
+    setDirty(false);
+    try { localStorage.removeItem(KEY); } catch(e){}
+    toast("Saved to " + (res.j.source || "source") + ". Reloading...");
+    setTimeout(function(){ location.reload(); }, 900);
+  })
+  .catch(function(err){
+    toast("Could not save: " + err.message);
+    offerExport();
+  });
+}
+
+function payload(){
+  return JSON.stringify({
+    folio: 1,
+    docId: META.docId || "",
+    title: META.title || "",
+    saved: new Date().toISOString(),
+    edits: edits
+  }, null, 2);
+}
+
+function download(name, text, mime){
+  var blob = new Blob([text], { type: mime || "application/json" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+}
+
+/* Rebuild this page with the edits folded in, so a reader can hand back one
+   working file when they have no other route. */
+function htmlText(){
+  var clone = document.documentElement.cloneNode(true);
+  var model = JSON.parse(JSON.stringify(MODEL));
+  var byId = {};
+  (model.blocks || []).forEach(function(s){
+    byId[s.id] = s;
+    (s.content || []).forEach(function(c){ byId[c.id] = c; });
+  });
+  Object.keys(edits).forEach(function(path){
+    var parts = path.split(".");
+    if (parts[0] === "meta"){ model.meta[parts[1]] = edits[path]; return; }
+    var cur = byId[parts[0]];
+    for (var i = 1; i < parts.length - 1 && cur; i++){
+      cur = Array.isArray(cur) ? cur[+parts[i]] : cur[parts[i]];
+    }
+    if (cur) cur[parts[parts.length - 1]] = edits[path];
+  });
+  clone.querySelector("#folio-model").textContent = JSON.stringify(model);
+  // The copy must open in a clean state: no dialog, no edit mode, nothing half-open.
+  clone.querySelector("body").classList.remove("editing");
+  clone.querySelector("#dlg").classList.remove("on");
+  clone.querySelector("#dlgbox").innerHTML = "";
+  ["#grid", "#notes"].forEach(function(q){ var n = clone.querySelector(q); if (n) n.classList.remove("on"); });
+  clone.querySelectorAll(".on").forEach(function(n){ n.classList.remove("on"); });
+  clone.querySelectorAll("[contenteditable]").forEach(function(n){ n.removeAttribute("contenteditable"); });
+  var stage = clone.querySelector("#stage"); if (stage) stage.innerHTML = "";
+  var doc = clone.querySelector("#doc"); if (doc) doc.innerHTML = "";
+  return "<!DOCTYPE html>\n" + clone.outerHTML;
+}
+function exportHtml(){ download(baseName() + "-edited.html", htmlText(), "text/html"); }
+
+function offerExport(){
+  var box = document.getElementById("dlgbox");
+  var n = Object.keys(edits).length;
+  box.innerHTML =
+    "<h3>Send your changes back</h3>" +
+    "<p>You changed <b>" + n + "</b> " + (n === 1 ? "item" : "items") +
+    ". A browser cannot overwrite a file you opened from your own disk, so pick " +
+    "one of these. The first is smallest and easiest to paste into a chat.</p>" +
+    '<div class="row">' +
+      '<button class="primary" id="d-copy">Copy changes</button>' +
+      '<button id="d-json">Download changes (.json)</button>' +
+      '<button id="d-html">Download full document</button>' +
+      '<button id="d-close">Cancel</button>' +
+    "</div>";
+  document.getElementById("dlg").classList.add("on");
+  var name = (META.title || "document").replace(/[^\w\-]+/g, "-").toLowerCase();
+
+  document.getElementById("d-copy").onclick = function(){
+    var text = payload();
+    (navigator.clipboard
+      ? navigator.clipboard.writeText(text)
+      : Promise.reject())
+      .then(function(){ toast("Changes copied. Paste them to whoever owns the document."); })
+      .catch(function(){ download(name + "-changes.json", text); })
+      .then(closeDialog);
+  };
+  document.getElementById("d-json").onclick = function(){
+    download(name + "-changes.json", payload()); closeDialog();
+  };
+  document.getElementById("d-html").onclick = function(){ exportHtml(); closeDialog(); };
+  document.getElementById("d-close").onclick = closeDialog;
+}
+
+function closeDialog(){ document.getElementById("dlg").classList.remove("on"); }
+
+/* ---------------- chrome behaviour ---------------- */
+
+function toggleGrid(force){
+  var g = document.getElementById("grid");
+  var on = force === undefined ? !g.classList.contains("on") : force;
+  g.classList.toggle("on", on);
+  document.querySelector('[data-act="grid"]').classList.toggle("on", on);
+}
+function toggleNotes(){
+  var n = document.getElementById("notes");
+  var on = !n.classList.contains("on");
+  n.classList.toggle("on", on);
+  document.querySelector('[data-act="notes"]').classList.toggle("on", on);
+}
+var bgAudio = null, soundOn = false;
+function toggleSound(){
+  var a = ASSETS.bgsound;
+  if (!a || a.missing) return;
+  var btn = document.querySelector('[data-act="sound"]');
+  if (!bgAudio){ bgAudio = new Audio(dataUri(a)); bgAudio.loop = true; bgAudio.volume = 0.4; }
+  soundOn = !soundOn;
+  if (soundOn){
+    var pr = bgAudio.play();
+    if (pr && pr.catch) pr.catch(function(){
+      soundOn = false; btn.classList.remove("on");
+      toast("The browser blocked the sound. Click the speaker again.");
+    });
+    toast("Background sound on. Press M to stop.");
+  } else { bgAudio.pause(); toast("Background sound off."); }
+  btn.classList.toggle("on", soundOn);
+}
+function toggleTheme(){
+  var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem(KEY + ":theme", next); } catch(e){}
+  WIDGETS.forEach(sendState);
+}
+function showHelp(){
+  document.getElementById("dlgbox").innerHTML =
+    '<h3>Keyboard shortcuts</h3><table id="help"><tbody>' +
+    "<tr><td><kbd>&rarr;</kbd> <kbd>space</kbd></td><td>Next (steps an animation first, if the slide has one)</td></tr>" +
+    "<tr><td><kbd>&larr;</kbd></td><td>Previous</td></tr>" +
+    "<tr><td><kbd>O</kbd></td><td>Overview of all sections</td></tr>" +
+    "<tr><td><kbd>M</kbd></td><td>Background sound on or off (when the file has one)</td></tr>" +
+    "<tr><td><kbd>N</kbd></td><td>Speaker notes</td></tr>" +
+    "<tr><td><kbd>E</kbd></td><td>Edit mode</td></tr>" +
+    "<tr><td><kbd>T</kbd></td><td>Light / dark</td></tr>" +
+    "<tr><td><kbd>F</kbd></td><td>Full screen</td></tr>" +
+    "<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edits (Chrome and Edge overwrite the file, other browsers download a copy)</td></tr>" +
+    "<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Other ways to send changes back (copy as text)</td></tr>" +
+    "<tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print / save as PDF</td></tr>" +
+    '</tbody></table><div class="row" style="margin-top:18px">' +
+    '<button class="primary" id="d-ok">Close</button></div>';
+  document.getElementById("dlg").classList.add("on");
+  document.getElementById("d-ok").onclick = closeDialog;
+}
+
+document.getElementById("bar").addEventListener("click", function(e){
+  var b = e.target.closest("button");
+  if (!b) return;
+  var act = b.getAttribute("data-act");
+  if (act === "next") go(1);
+  else if (act === "prev") go(-1);
+  else if (act === "grid") toggleGrid();
+  else if (act === "notes") toggleNotes();
+  else if (act === "theme") toggleTheme();
+  else if (act === "sound") toggleSound();
+  else if (act === "edit") setEditing(!editing);
+  else if (act === "save") save();
+  else if (act === "help") showHelp();
+});
+
+document.getElementById("dlg").addEventListener("click", function(e){
+  if (e.target.id === "dlg") closeDialog();
+});
+
+document.addEventListener("keydown", handleKey);
+
+function handleKey(e){
+  if (e.target.isContentEditable && e.key !== "Escape") {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s"){
+      e.preventDefault(); e.target.blur(); e.shiftKey ? offerExport() : save();
+    }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s"){ e.preventDefault(); e.shiftKey ? offerExport() : save(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  var k = e.key;
+  if (k === "Escape"){ closeDialog(); toggleGrid(false); if (editing) setEditing(false); return; }
+  if (!SLIDES && ["e", "E", "t", "T", "f", "F", "m", "M", "?"].indexOf(k) < 0) return;
+
+  if (k === "ArrowRight" || k === "PageDown" || k === " "){ e.preventDefault(); go(1); }
+  else if (k === "ArrowLeft" || k === "PageUp"){ e.preventDefault(); go(-1); }
+  else if (k === "Home"){ show(0); }
+  else if (k === "End"){ show(SECTIONS.length - 1); }
+  else if (k === "o" || k === "O"){ toggleGrid(); }
+  else if (k === "n" || k === "N"){ toggleNotes(); }
+  else if (k === "e" || k === "E"){ setEditing(!editing); }
+  else if (k === "t" || k === "T"){ toggleTheme(); }
+  else if (k === "m" || k === "M"){ toggleSound(); }
+  else if (k === "?"){ showHelp(); }
+  else if (k === "f" || k === "F"){
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(function(){});
+  }
+}
+
+window.addEventListener("beforeunload", function(e){
+  if (dirty && !served){ e.preventDefault(); e.returnValue = ""; }
+});
+
+/* Touch: swipe between slides. */
+(function(){
+  var x0 = null, y0 = null;
+  document.addEventListener("touchstart", function(e){
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener("touchend", function(e){
+    if (x0 === null || !SLIDES || editing) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    var dy = e.changedTouches[0].clientY - y0;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.6) go(dx < 0 ? 1 : -1);
+    x0 = y0 = null;
+  }, { passive: true });
+})();
+
+/* ---------------- boot ---------------- */
+
+if (META.accent) document.documentElement.style.setProperty("--accent", META.accent);
+var savedTheme = null;
+try { savedTheme = localStorage.getItem(KEY + ":theme"); } catch(e){}
+document.documentElement.setAttribute("data-theme", savedTheme || META.theme || "light");
+document.body.className = (SLIDES ? "slides" : "page") + " first";
+document.title = META.title || "Document";
+
+restore();
+if (SLIDES){
+  var hash = parseInt((location.hash || "").slice(1), 10);
+  if (hash > 0) index = hash - 1;
+  renderSlides();
+} else {
+  renderPage();
+}
+
+detectServer().then(function(ok){
+  served = ok;
+  var btn = document.querySelector('[data-act="save"]');
+  btn.title = ok ? "Save to source file (Ctrl+S)" : "Save your edits (Ctrl+S)";
+  if (ok) toast("Connected to local folio server. Save writes straight to your source.");
+});
+})();
+</script>
+</body>
+</html>

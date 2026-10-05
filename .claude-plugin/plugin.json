@@ -1,0 +1,18 @@
+{
+  "name": "folio",
+  "version": "1.1.0",
+  "description": "Documents, presentations, notes and mini-sites as one self-contained HTML file. Write Markdown, get a file that opens by double-click, in your own brand, with interactive widgets and an in-browser edit mode.",
+  "author": {
+    "name": "Diogo"
+  },
+  "keywords": [
+    "presentation",
+    "slides",
+    "deck",
+    "html",
+    "mini-site",
+    "single-file",
+    "templates"
+  ],
+  "license": "MIT"
+}
